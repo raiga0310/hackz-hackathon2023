@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import * as BABYLON from "babylonjs";
+import { Button, AdvancedDynamicTexture } from "babylonjs-gui";
 import 'babylonjs-materials';
 import "./Canvas.css";
 
@@ -14,9 +15,8 @@ export default function Canvas() {
             const scene = new BABYLON.Scene(engine);
             const _light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0));
 
-            const camera = new BABYLON.ArcRotateCamera("Camera", 3 * Math.PI / 2, 3 * Math.PI / 8, 10, BABYLON.Vector3.Zero(), scene);
+            const camera = new BABYLON.ArcRotateCamera("Camera", 3 * Math.PI / 2, Math.PI / 2.2, 70, BABYLON.Vector3.Zero(), scene);
             camera.setTarget(BABYLON.Vector3.Zero());
-            camera.attachControl(true);
             camera.upperBetaLimit = Math.PI / 2.2;
 
             const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 150 }, scene);
@@ -45,18 +45,76 @@ export default function Canvas() {
             ground.material = groundMat;
 
             const boxSize = 1;
-            const box = makeBox("box1", new BABYLON.Vector3(1, 1, 1), new BABYLON.Vector3(0, 0, 0));
+            const box = makeBox("box1", new BABYLON.Vector3(1, 1, 1), new BABYLON.Vector3(0, 0, -45));
 
             box.position.addInPlaceFromFloats(0, boxSize / 2.0, 0);
 
-            const roof = BABYLON.MeshBuilder.CreateCylinder("roof", {diameter: 1.3, height: 1.2, tessellation: 3});
-            roof.scaling.x = 0.75;
-            roof.rotation.z = Math.PI / 2;
-            roof.position.y = 1.25;
+            // GUI
+            let appState: "start" | "play" | "pause" = "start";
+            let advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("UI");
+
+            const button1 = Button.CreateSimpleButton("but1", "Start");
+            button1.width = "150px"
+            button1.height = "40px";
+            button1.color = "white";
+            button1.cornerRadius = 20;
+            button1.background = "green";
+            button1.onPointerUpObservable.add(function() {
+                appState = "play";
+                advancedTexture.removeControl(button1);
+            });
+            const button2 = Button.CreateSimpleButton("but2", "Resume");
+            button2.width = "150px";
+            button2.height = "40px";
+            button2.color = "white";
+            button2.cornerRadius = 20;
+            button2.background = "green";
+            button2.top = "40px";
+            button2.onPointerUpObservable.add(function() {
+                appState = "play";
+                advancedTexture.removeControl(button2);
+                advancedTexture.removeControl(button3);
+            });
+            const button3 = Button.CreateSimpleButton("but3", "Title");
+            button3.width = "150px";
+            button3.height = "40px";
+            button3.color = "white";
+            button3.cornerRadius = 20;
+            button3.background = "red";
+            button3.top = "90px"
+            button3.onPointerUpObservable.add(function() {
+                appState = "start";
+                advancedTexture.removeControl(button2);
+                advancedTexture.removeControl(button3);
+            })
+            advancedTexture.addControl(button1);
+
+            scene.onKeyboardObservable.add((keyboard) => {
+                switch (keyboard.type) {
+                    case BABYLON.KeyboardEventTypes.KEYDOWN:
+                        switch (keyboard.event.key) {
+                            case "p":
+                            case "P":
+                                //@ts-ignore
+                                if (appState === "play"){
+                                    appState = "pause";
+                                }
+                                break;
+                        }
+                    break;
+                }
+            });
 
             scene.beforeRender = function () {
-                const texture = groundMat.diffuseTexture as BABYLON.Texture;
-                texture.vOffset += 0.00625;
+                if (appState === "play") {
+                    const texture = groundMat.diffuseTexture as BABYLON.Texture;
+                    texture.vOffset += 0.00625;
+                } else if (appState === "start") {
+                    advancedTexture.addControl(button1);
+                } else if (appState === "pause") {
+                    advancedTexture.addControl(button2);
+                    advancedTexture.addControl(button3);
+                }
             }
 
             engine.runRenderLoop(() => {
@@ -67,7 +125,7 @@ export default function Canvas() {
     return (
         <canvas
             id="renderCanvas"
-            className="m-2 h-[400px]"
+            className="m-2"
             ref={gameRef}
             ></canvas>
     )

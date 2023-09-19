@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
+  '@babylonjs/core':
+    specifier: ^6.21.0
+    version: 6.21.0
   '@types/node':
     specifier: 20.6.1
     version: 20.6.1
@@ -17,6 +20,15 @@ dependencies:
   autoprefixer:
     specifier: 10.4.15
     version: 10.4.15(postcss@8.4.29)
+  babylon-voxel-skybox:
+    specifier: ^1.0.3
+    version: 1.0.3
+  babylonjs:
+    specifier: ^6.21.0
+    version: 6.21.0
+  babylonjs-materials:
+    specifier: ^6.21.0
+    version: 6.21.0
   eslint:
     specifier: 8.49.0
     version: 8.49.0
@@ -59,6 +71,10 @@ packages:
     engines: {node: '>=6.9.0'}
     dependencies:
       regenerator-runtime: 0.14.0
+    dev: false
+
+  /@babylonjs/core@6.21.0:
+    resolution: {integrity: sha512-8g+HPZ1aNKoqad/lq85iYngtGZIJh40Hkk2ybj9ilZOk53VAp6qYdm5TFCFhsYjuQeWzFT5a4QtiwskC8S8DUg==}
     dev: false
 
   /@eslint-community/eslint-utils@4.4.0(eslint@8.49.0):
@@ -541,6 +557,22 @@ packages:
     resolution: {integrity: sha512-jsyHu61e6N4Vbz/v18DHwWYKK0bSWLqn47eeDSKPB7m8tqMHF9YJ+mhIk2lVteyZrY8tnSj/jHOv4YiTCuCJgg==}
     dependencies:
       dequal: 2.0.3
+    dev: false
+
+  /babylon-voxel-skybox@1.0.3:
+    resolution: {integrity: sha512-AW88arDOIX9WJXexyqbNdjg7xxFFjVCbdGuPOXrS5hwOe2uIL6MYx9L73eZDV7ZZGRYQRTA5lSRfni9hmBjnIg==}
+    engines: {node: '>= 0.8.0'}
+    dev: false
+
+  /babylonjs-materials@6.21.0:
+    resolution: {integrity: sha512-X2ywOX92vxBqHNlux5s9ESwre+efrGQrB5Tleel/KrlCwe2tjcEgP8WuGoN3N8pwQO9NXT16cMN/mKO9JTxFpQ==}
+    dependencies:
+      babylonjs: 6.21.0
+    dev: false
+
+  /babylonjs@6.21.0:
+    resolution: {integrity: sha512-WU+s8i9PjV6j77iI/VLn1Vakkl0y0gBIwJE6Ks+iq36yuo9NJAvrYDnC0OqeQWs9gnsSJ26xgKpftrpJ01t1Sg==}
+    requiresBuild: true
     dev: false
 
   /balanced-match@1.0.2:

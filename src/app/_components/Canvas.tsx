@@ -49,9 +49,40 @@ export default function Canvas() {
 
             box.position.addInPlaceFromFloats(0, boxSize / 2.0, 0);
 
+            let isLeftPressed: boolean = false;
+            let isRightPressed: boolean = false;
+
+            document.addEventListener("keydown", function(event) {
+                switch (event.key) {
+                    case "ArrowLeft":
+                        isLeftPressed = true;
+                        break;
+                    case "ArrowRight":
+                        isRightPressed = true;
+                        break;
+                }
+            });
+
+            document.addEventListener("keyup", function(event) {
+                switch (event.key) {
+                    case "ArrowLeft":
+                        isLeftPressed = false;
+                        break;
+                    case "ArrowRight":
+                        isRightPressed = false;
+                        break;
+                }
+            });
+
+            let bullets: BABYLON.Mesh[] = [];
+
+            const bulletCooldown = 10;
+            let currentBulletCooldown = 0;
+
             // GUI
             let appState: "start" | "play" | "pause" = "start";
             let advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("UI");
+            advancedTexture.background = "rgba(128, 128, 128, 0.7)"; // 透明度の高いグレー
 
             const button1 = Button.CreateSimpleButton("but1", "Start");
             button1.width = "150px"
@@ -69,7 +100,7 @@ export default function Canvas() {
             button2.color = "white";
             button2.cornerRadius = 20;
             button2.background = "green";
-            button2.top = "40px";
+            button2.top = "0px";
             button2.onPointerUpObservable.add(function() {
                 appState = "play";
                 advancedTexture.removeControl(button2);
@@ -84,6 +115,12 @@ export default function Canvas() {
             button3.top = "90px"
             button3.onPointerUpObservable.add(function() {
                 appState = "start";
+                box.position.x = 0;
+                scene.meshes
+                    .filter((mesh) => mesh.name === "bullet")
+                    .map((mesh) => mesh.dispose());
+
+                bullets = [];
                 advancedTexture.removeControl(button2);
                 advancedTexture.removeControl(button3);
             })
@@ -105,13 +142,25 @@ export default function Canvas() {
                 }
             });
 
+            const animationSpeed = 0.2;
+
             scene.beforeRender = function () {
                 if (appState === "play") {
+                    advancedTexture.background = "rgba(128, 128, 128, 0)"; // 透明度の高いグレー
+
                     const texture = groundMat.diffuseTexture as BABYLON.Texture;
                     texture.vOffset += 0.00625;
+                    if (isLeftPressed) {
+                        box.position.x -= animationSpeed;
+                    } else if (isRightPressed) {
+                        box.position.x += animationSpeed;
+                    }
                 } else if (appState === "start") {
+                    advancedTexture.background = "rgba(128, 128, 128, 0.7)"; // 透明度の高いグレー
                     advancedTexture.addControl(button1);
                 } else if (appState === "pause") {
+                    advancedTexture.background = "rgba(128, 128, 128, 0.7)"; // 透明度の高いグレー
+
                     advancedTexture.addControl(button2);
                     advancedTexture.addControl(button3);
                 }
@@ -119,6 +168,32 @@ export default function Canvas() {
 
             engine.runRenderLoop(() => {
                 scene.render();
+
+                if (appState === "play") {
+                    if (currentBulletCooldown <= 0) {
+                        const bullet = BABYLON.MeshBuilder.CreateSphere("bullet", { segments: 16, diameter: 0.8, diameterZ: 4.0 }, scene);
+                        bullet.position.copyFrom(box.position);
+                        bullet.position.z += 2;
+
+                        bullets.push(bullet);
+
+                        currentBulletCooldown = bulletCooldown;
+                    } else {
+                        currentBulletCooldown--;
+                    }
+
+                    for (let i = 0; i < bullets.length; i++) {
+                        let bullet = bullets[i];
+                        bullet.position.z += 2; // 弾を前方に移動
+
+                        // 画面外に出た弾を削除
+                        if (bullet.position.z > 75) {
+                            bullet.dispose();
+                            bullets.splice(i, 1);
+                            i--;
+                        }
+                    }
+                }
             });
         }
     )();

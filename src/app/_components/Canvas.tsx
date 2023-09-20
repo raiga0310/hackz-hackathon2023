@@ -2,10 +2,9 @@
 
 import {useEffect, useRef} from "react";
 import * as BABYLON from "babylonjs";
-import { Button, AdvancedDynamicTexture, Image, Rectangle } from "babylonjs-gui";
+import { Button, AdvancedDynamicTexture, Image, Rectangle, TextBlock } from "babylonjs-gui";
 import 'babylonjs-materials';
 import "./Canvas.css";
-import {randomInt} from "crypto";
 
 type PLayer = {
     mesh: BABYLON.Mesh;
@@ -29,7 +28,7 @@ export default function Canvas() {
             }
             const engine = new BABYLON.Engine(renderCanvas, true);
             const scene = new BABYLON.Scene(engine);
-            const _light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0));
+            new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0));
 
             const camera = new BABYLON.ArcRotateCamera("Camera", 3 * Math.PI / 2, Math.PI / 2.2, 70, BABYLON.Vector3.Zero(), scene);
             camera.setTarget(BABYLON.Vector3.Zero());
@@ -101,12 +100,13 @@ export default function Canvas() {
             let enemiesBullets: BABYLON.Mesh[] = [];
 
             const playerBulletsCooldown = 10;
-            const enemiesBulletsCooldown = 40;
+            const enemiesBulletsCooldown = 50;
             let currentPlayerBulletsCooldown = 0;
             let currentEnemiesCooldown = 0;
 
             // GUI
             let appState: "start" | "play" | "pause" | "over" | "clear" = "start";
+            let gameState: "explain" | "phase1" | "story" | "boss" = "explain";
             let advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("UI");
             advancedTexture.background = "rgba(128, 128, 128, 0.7)"; // 透明度の高いグレー
 
@@ -147,6 +147,7 @@ export default function Canvas() {
             button3.top = "90px"
             button3.onPointerUpObservable.add(function() {
                 appState = "start";
+                gameState = "explain";
                 player.mesh.position.x = 0;
                 scene.meshes
                     .filter((mesh) => mesh.name === "bullet")
@@ -167,6 +168,10 @@ export default function Canvas() {
                 advancedTexture.removeControl(button3);
                 advancedTexture.removeControl(congrats);
                 advancedTexture.removeControl(hpBar);
+                currentTextIndex = 0;
+                textIndex = 0;
+                textBlock.text = "";
+                advancedTexture.removeControl(dialogBox);
             });
             const congrats =new Image("congrats", "/Congrats.png");
             congrats.width = "800px";
@@ -180,6 +185,78 @@ export default function Canvas() {
             hpBar.background = "green";
             advancedTexture.addControl(button1);
             advancedTexture.addControl(logo);
+
+            //dialog box
+            const dialogBox = new Rectangle("dialog");
+            dialogBox.width = "60%";
+            dialogBox.height = "30%";
+            dialogBox.background = "rgb(0, 15, 69)";
+            dialogBox.thickness = 2;
+            dialogBox.color = "white";
+            dialogBox.alpha = 0.3;
+
+            const textBlock = new TextBlock("text");
+            textBlock.color = "white";
+            textBlock.text = "Press Enter Key エンターキーを押してください｡";
+            dialogBox.addControl(textBlock);
+
+            dialogBox.linkWithMesh(null);
+            dialogBox.linkOffsetY = -100;
+
+            let currentTextIndex = 0;
+            let textIndex = 0;
+            const explainTexts = [
+                "あなたはCPUから派遣されたガベージコレクタです｡\nあなたに課せられた任務は､RustというGC(ガベージコレクタ)の無い治安の悪いメモリ空間を掃除することにあります｡",
+                "←→を入力すればアドレス空間を左右に横断できます｡メモリ解放のための命令弾は自動的に発射されます｡\nもちろん､アドレス空間の領域の端まで行けば自動で消えますのでご安心を｡",
+                "我々の任務は確実な成功を必要とします｡もしあなたが任務遂行が難しいと考えれば､\n｢P｣キーを押せばポーズ画面で中断も可能です｡",
+                "･･････早速メモリ残留物が探知範囲にかかりました｡\n任務に取り掛かってください｡"
+            ];
+
+            const storyTexts = [
+                "スタック領域の残留物はこのくらいでしょう｡",
+                "ここからヒープ領域に突入します｡",
+                "今回の任務の主目標である巨大な残留物があります｡",
+                "･･････探知しました｡｢Box｣です｡\nBoxはヒープ領域にRustceanが明示的に仕込むことができる悪しき残留物です｡必ず排除してください｡",
+                "開放に際しては､Boxは何重にも悪ふざけによってBoxでラップされている可能性があります｡\n完全に中の本体が開放されるまで､油断しないようにしてください｡"
+            ];
+
+            document.addEventListener("keydown", function(event) {
+                if (event.key === "Enter") {
+                    if (gameState === "explain") {
+                        if (currentTextIndex < explainTexts.length) {
+                            textBlock.text = "";
+                            dialogBox.alpha = 0.8;
+                            animateText(textBlock, explainTexts[currentTextIndex]);
+                        } else {
+                            gameState = "phase1";
+                            advancedTexture.removeControl(dialogBox);
+                        }
+                    } else if (gameState === "story") {
+                        textIndex = 0;
+                        if (currentTextIndex < storyTexts.length) {
+                            textBlock.text = "";
+                            dialogBox.alpha = 0.8;
+                            animateText(textBlock, storyTexts[currentTextIndex]);
+                        } else {
+                            gameState = "boss";
+                            advancedTexture.removeControl(dialogBox);
+                            advancedTexture.background = "rgba(128, 128, 128, 1)";
+                        }
+                    }
+                }
+            });
+
+            function animateText(textBlock: TextBlock, text: string) {
+                if (textIndex < text.length) {
+                    textBlock.text += text[textIndex];
+                    textIndex++;
+
+                    setTimeout(() => animateText(textBlock, text), 10);
+                } else {
+                    textIndex = 0; // テキストが終了したら textIndex をリセット
+                    currentTextIndex++; // 次のテキストに進む
+                }
+            }
 
             scene.onKeyboardObservable.add((keyboard) => {
                 switch (keyboard.type) {
@@ -202,18 +279,34 @@ export default function Canvas() {
             scene.beforeRender = function () {
                 if (appState === "play") {
                     advancedTexture.background = "rgba(128, 128, 128, 0)";
-                    advancedTexture.addControl(hpBar);
 
                     const texture = groundMat.diffuseTexture as BABYLON.Texture;
-                    intEnemies.map((enemy) => {
-                        enemy.mesh.position.z -= 0.1;
-                    });
                     texture.vOffset += 0.00625;
 
                     if (isLeftPressed) {
                         player.mesh.position.x -= animationSpeed;
                     } else if (isRightPressed) {
                         player.mesh.position.x += animationSpeed;
+                    }
+
+                    if (gameState === "explain") {
+                        advancedTexture.addControl(dialogBox);
+                    } else if (gameState === "phase1") {
+                        textBlock.text = "";
+                        currentTextIndex = 0;
+                        advancedTexture.removeControl(dialogBox);
+                        advancedTexture.addControl(hpBar);
+
+                        intEnemies.map((enemy) => {
+                            enemy.mesh.position.z -= 0.1;
+                        });
+                    } else if (gameState === "story") {
+                        enemiesBullets.map((bullet) => bullet.dispose());
+                        playerBullets.map((bullet) => bullet.dispose());
+                        advancedTexture.addControl(dialogBox);
+                        advancedTexture.background = "rgba(128, 128, 128, 0.7)";
+                    } else if (gameState === "boss") {
+                        //bos position move?
                     }
 
                 } else if (appState === "start") {
@@ -257,24 +350,25 @@ export default function Canvas() {
                             }
                         }
                     }
-                    for(let i = 0; i < enemiesBullets.length; i++) {
-                        const bullet = enemiesBullets[i];
+                    if (gameState === "phase1") {
+                        for (let i = 0; i < enemiesBullets.length; i++) {
+                            const bullet = enemiesBullets[i];
 
-                        if (bullet.intersectsMesh(player.mesh, false)) {
-                            bullet.dispose()
-                            enemiesBullets.splice(i, 1);
+                            if (bullet.intersectsMesh(player.mesh, false)) {
+                                bullet.dispose()
+                                enemiesBullets.splice(i, 1);
 
-                            if (player.hp <= 0) {
-                                player.mesh.dispose();
-                                appState = "over";
-                            } else {
-                                player.hp--;
+                                if (player.hp <= 0) {
+                                    appState = "over";
+                                } else {
+                                    player.hp--;
+                                }
                             }
                         }
-                    }
 
-                    if (intEnemies.length === 0) {
-                        appState = "clear";
+                        if (intEnemies.length === 0) {
+                            gameState = "story";
+                        }
                     }
                 }
             });
@@ -283,61 +377,104 @@ export default function Canvas() {
                 scene.render();
 
                 if (appState === "play") {
-                    if (currentPlayerBulletsCooldown <= 0) {
-                        const playerBullet = BABYLON.MeshBuilder.CreateSphere("playerBullet", { segments: 16, diameter: 0.8, diameterZ: 4.0 }, scene);
-                        playerBullet.position.copyFrom(box.position);
-                        playerBullet.position.z += 2;
+                    if (gameState === "explain") {
 
-                        playerBullets.push(playerBullet);
+                    } else if (gameState === "phase1") {
+                        if (currentPlayerBulletsCooldown <= 0) {
+                            const playerBullet = BABYLON.MeshBuilder.CreateSphere("playerBullet", {
+                                segments: 16,
+                                diameter: 0.8,
+                                diameterZ: 4.0
+                            }, scene);
+                            playerBullet.position.copyFrom(box.position);
+                            playerBullet.position.z += 2;
 
-                        currentPlayerBulletsCooldown = playerBulletsCooldown;
-                    } else {
-                        currentPlayerBulletsCooldown--;
-                    }
+                            playerBullets.push(playerBullet);
 
-
-                    intEnemies.map((enemy) => {
-                        if (currentEnemiesCooldown <= 0) {
-                            const enemiesBullet = BABYLON.MeshBuilder.CreateSphere("enemiesBullet", {segments: 16, diameter: 0.4}, scene);
-                            enemiesBullet.position.copyFrom(enemy.mesh.position);
-                            enemiesBullet.position.z -= 4;
-
-                            enemiesBullets.push(enemiesBullet);
-
-                            currentEnemiesCooldown = enemiesBulletsCooldown;
-
+                            currentPlayerBulletsCooldown = playerBulletsCooldown;
                         } else {
-                            currentEnemiesCooldown--;
+                            currentPlayerBulletsCooldown--;
                         }
-                    });
 
-                    for (let i = 0; i < playerBullets.length; i++) {
-                        let bullet = playerBullets[i];
-                        bullet.position.z += 2; // 弾を前方に移動
+                        for (let i = 0; i < playerBullets.length; i++) {
+                            let bullet = playerBullets[i];
+                            bullet.position.z += 2; // 弾を前方に移動
 
-                        // 画面外に出た弾を削除
-                        if (bullet.position.z > 75) {
-                            bullet.dispose();
-                            playerBullets.splice(i, 1);
-                            i--;
+                            // 画面外に出た弾を削除
+                            if (bullet.position.z > 75) {
+                                bullet.dispose();
+                                playerBullets.splice(i, 1);
+                                i--;
+                            }
                         }
-                    }
 
-                    for (let i = 0; i < enemiesBullets.length; i++) {
-                        let bullet = enemiesBullets[i];
-                        bullet.position.z -= 0.5; // 弾を前方に移動
+                        intEnemies.map((enemy) => {
+                            if (currentEnemiesCooldown <= 0) {
+                                const enemiesBullet = BABYLON.MeshBuilder.CreateSphere("enemiesBullet", {
+                                    segments: 16,
+                                    diameter: 0.4
+                                }, scene);
+                                enemiesBullet.position.copyFrom(enemy.mesh.position);
+                                enemiesBullet.position.z -= 4;
 
-                        // 画面外に出た弾を削除
-                        if (bullet.position.z < -75) {
-                            bullet.dispose();
-                            enemiesBullets.splice(i, 1);
-                            i--;
+                                enemiesBullets.push(enemiesBullet);
+
+                                currentEnemiesCooldown = enemiesBulletsCooldown;
+
+                            } else {
+                                currentEnemiesCooldown--;
+                            }
+                        });
+
+                        for (let i = 0; i < enemiesBullets.length; i++) {
+                            let bullet = enemiesBullets[i];
+                            bullet.position.z -= 0.5; // 弾を前方に移動
+
+                            // 画面外に出た弾を削除
+                            if (bullet.position.z < -75) {
+                                bullet.dispose();
+                                enemiesBullets.splice(i, 1);
+                                i--;
+                            }
+                        }
+                    } else if (gameState === "boss") {
+                        if (currentPlayerBulletsCooldown <= 0) {
+                            const playerBullet = BABYLON.MeshBuilder.CreateSphere("playerBullet", {
+                                segments: 16,
+                                diameter: 0.8,
+                                diameterZ: 4.0
+                            }, scene);
+                            playerBullet.position.copyFrom(box.position);
+                            playerBullet.position.z += 2;
+
+                            playerBullets.push(playerBullet);
+
+                            currentPlayerBulletsCooldown = playerBulletsCooldown;
+                        } else {
+                            currentPlayerBulletsCooldown--;
+                        }
+
+                        for (let i = 0; i < playerBullets.length; i++) {
+                            let bullet = playerBullets[i];
+                            bullet.position.z += 2; // 弾を前方に移動
+
+                            // 画面外に出た弾を削除
+                            if (bullet.position.z > 75) {
+                                bullet.dispose();
+                                playerBullets.splice(i, 1);
+                                i--;
+                            }
                         }
                     }
                     const width = 800 * player.hp / playerHp;
                     hpBar.width = `${width}px`;
                 }
             });
+
+            window.addEventListener("resize", function() {
+                engine.resize();
+            });
+
         })();
     }, []);
     return (

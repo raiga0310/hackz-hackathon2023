@@ -24,11 +24,14 @@ dependencies:
     specifier: ^1.0.3
     version: 1.0.3
   babylonjs:
-    specifier: ^6.21.0
-    version: 6.21.0
+    specifier: ^6.21.1
+    version: 6.21.1
+  babylonjs-gui:
+    specifier: ^6.21.1
+    version: 6.21.1
   babylonjs-materials:
-    specifier: ^6.21.0
-    version: 6.21.0
+    specifier: ^6.21.1
+    version: 6.21.1
   eslint:
     specifier: 8.49.0
     version: 8.49.0
@@ -564,14 +567,20 @@ packages:
     engines: {node: '>= 0.8.0'}
     dev: false
 
-  /babylonjs-materials@6.21.0:
-    resolution: {integrity: sha512-X2ywOX92vxBqHNlux5s9ESwre+efrGQrB5Tleel/KrlCwe2tjcEgP8WuGoN3N8pwQO9NXT16cMN/mKO9JTxFpQ==}
+  /babylonjs-gui@6.21.1:
+    resolution: {integrity: sha512-gSb1jc59jAtamvqbLmBl9bfHtJm4E/cJ0SEEVpDEjm6AY9Smq/vo724gVgXwVKJABmtwlArSgUrxK4hhjmB2Sw==}
     dependencies:
-      babylonjs: 6.21.0
+      babylonjs: 6.21.1
     dev: false
 
-  /babylonjs@6.21.0:
-    resolution: {integrity: sha512-WU+s8i9PjV6j77iI/VLn1Vakkl0y0gBIwJE6Ks+iq36yuo9NJAvrYDnC0OqeQWs9gnsSJ26xgKpftrpJ01t1Sg==}
+  /babylonjs-materials@6.21.1:
+    resolution: {integrity: sha512-0CgK5LJB4xz+ic7ELCwLZVorLoO1IAl/Cl6gYLJ3QaaIK5zAPig5oO0gRp9yOihucw1c+m8EUFl7OpMDY6uPSA==}
+    dependencies:
+      babylonjs: 6.21.1
+    dev: false
+
+  /babylonjs@6.21.1:
+    resolution: {integrity: sha512-uCMzjXIkPf66BwDVPy9JNGIQj7ooIwmJxcsu5SW86GlMLSYenpSjZuz8C1bs6rRltfy+z/fXyAT+roRG7Je89w==}
     requiresBuild: true
     dev: false
 

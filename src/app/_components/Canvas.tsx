@@ -2,7 +2,7 @@
 
 import {useEffect, useRef} from "react";
 import * as BABYLON from "babylonjs";
-import { Button, AdvancedDynamicTexture, Image, Rectangle, TextBlock } from "babylonjs-gui";
+import {AdvancedDynamicTexture, Button, Image, Rectangle, TextBlock} from "babylonjs-gui";
 import 'babylonjs-materials';
 import "./Canvas.css";
 
@@ -14,8 +14,21 @@ type PLayer = {
 
 type Enemy = {
     mesh: BABYLON.Mesh;
+    textMesh: BABYLON.Mesh;
     hp: number;
 };
+
+type BossBox = {
+    mainMesh: BABYLON.Mesh;
+    shell: Shell[];
+    textMesh: BABYLON.Mesh;
+    hp: number;
+};
+
+type Shell = {
+    mesh: BABYLON.Mesh;
+    hp: number;
+}
 
 export default function Canvas() {
     const gameRef = useRef(null);
@@ -68,7 +81,11 @@ export default function Canvas() {
 
             const numIntEnemies = 5;
             const enemyHp = 3;
-            let intEnemies: Enemy[] = makeEnemies(numIntEnemies, enemyHp);
+            let intEnemies: Enemy[] = makeEnemies(numIntEnemies, enemyHp, scene);
+
+            const shellHp = 30;
+            const bossHp = 50;
+            let bossEnemy = makeBossBox(5, shellHp, bossHp, scene);
 
             let isLeftPressed: boolean = false;
             let isRightPressed: boolean = false;
@@ -98,11 +115,15 @@ export default function Canvas() {
 
             let playerBullets: BABYLON.Mesh[] = [];
             let enemiesBullets: BABYLON.Mesh[] = [];
+            let bossBoxBullets: { mesh: BABYLON.Mesh, direction: number }[] = [];
 
             const playerBulletsCooldown = 10;
             const enemiesBulletsCooldown = 50;
+            const bossBoxBulletsCooldown = 40;
             let currentPlayerBulletsCooldown = 0;
             let currentEnemiesCooldown = 0;
+            let currentBossBoxCooldown = 0;
+            let currentAngle = 0;
 
             // GUI
             let appState: "start" | "play" | "pause" | "over" | "clear" = "start";
@@ -154,13 +175,22 @@ export default function Canvas() {
                     .map((mesh) => mesh.dispose());
                 intEnemies.map((enemy) => {
                     enemy.mesh.position.z = 50;
+                    //
                 });
 
                 playerBullets.map((bullet) => bullet.dispose());
                 playerBullets = [];
                 intEnemies.map((enemy) => enemy.mesh.dispose());
                 intEnemies = [];
-                intEnemies = makeEnemies(numIntEnemies, enemyHp);
+                intEnemies = makeEnemies(numIntEnemies, enemyHp, scene);
+                bossEnemy.mainMesh.dispose();
+                bossEnemy.shell.map((shell) => {
+                    shell.mesh.dispose();
+                });
+                bossEnemy.textMesh.dispose();
+                bossBoxBullets.map((bullet) => bullet.mesh.dispose());
+                bossBoxBullets = [];
+                bossEnemy = makeBossBox(5, shellHp, bossHp, scene);
                 enemiesBullets.map((bullet) => bullet.dispose());
                 enemiesBullets = [];
                 player.hp = playerHp;
@@ -251,7 +281,7 @@ export default function Canvas() {
                     textBlock.text += text[textIndex];
                     textIndex++;
 
-                    setTimeout(() => animateText(textBlock, text), 10);
+                    setTimeout(() => animateText(textBlock, text), 20);
                 } else {
                     textIndex = 0; // テキストが終了したら textIndex をリセット
                     currentTextIndex++; // 次のテキストに進む
@@ -306,7 +336,18 @@ export default function Canvas() {
                         advancedTexture.addControl(dialogBox);
                         advancedTexture.background = "rgba(128, 128, 128, 0.7)";
                     } else if (gameState === "boss") {
-                        //bos position move?
+                        //boss position move
+                        if (bossEnemy.mainMesh.position.y >= 1) {
+                            bossEnemy.mainMesh.position.y -= 0.5;
+                        }
+                        bossEnemy.shell.map((shell) => {
+                            if(shell.mesh.position.y >= shell.mesh.scaling.y / 2) {
+                                shell.mesh.position.y -= 0.5;
+                            }
+                        });
+                        if (bossEnemy.textMesh.position.y >= 14) {
+                            bossEnemy.textMesh.position.y -= 0.1;
+                        }
                     }
 
                 } else if (appState === "start") {
@@ -331,26 +372,28 @@ export default function Canvas() {
 
             scene.registerBeforeRender(function() {
                 if (appState === "play") {
-                    for(let i = 0; i < playerBullets.length; i++) {
-                        const bullet = playerBullets[i];
+                    if (gameState === "phase1") {
+                        for(let i = 0; i < playerBullets.length; i++) {
+                            const bullet = playerBullets[i];
 
-                        for(let j = 0; j < intEnemies.length; j++) {
-                            const enemy = intEnemies[j];
+                            for(let j = 0; j < intEnemies.length; j++) {
+                                const enemy = intEnemies[j];
 
-                            if (bullet.intersectsMesh(enemy.mesh, false)) {
-                                bullet.dispose();
-                                playerBullets.splice(i, 1);
+                                if (bullet.intersectsMesh(enemy.mesh, false)) {
+                                    bullet.dispose();
+                                    playerBullets.splice(i, 1);
 
-                                if (enemy.hp <= 0) {
-                                    enemy.mesh.dispose();
-                                    intEnemies.splice(j, 1);
-                                } else {
-                                    enemy.hp--;
+                                    if (enemy.hp <= 0) {
+                                        enemy.mesh.dispose();
+                                        enemy.textMesh.dispose();
+                                        intEnemies.splice(j, 1);
+                                    } else {
+                                        enemy.hp--;
+                                    }
                                 }
                             }
                         }
-                    }
-                    if (gameState === "phase1") {
+
                         for (let i = 0; i < enemiesBullets.length; i++) {
                             const bullet = enemiesBullets[i];
 
@@ -368,6 +411,52 @@ export default function Canvas() {
 
                         if (intEnemies.length === 0) {
                             gameState = "story";
+                        }
+                    }
+                    else if (gameState === "boss") {
+                        for (let i = 0; i < playerBullets.length; i++) {
+                            const bullet = playerBullets[i];
+                            if (bossEnemy.shell.length > 0) {
+                                const shell = bossEnemy.shell[0];
+                                if (bullet.intersectsMesh(shell.mesh, false)) {
+                                    bullet.dispose();
+                                    playerBullets.splice(i, 1);
+
+                                    if (shell.hp <= 0) {
+                                        shell.mesh.dispose();
+                                        bossEnemy.shell.splice(0, 1);
+                                    } else {
+                                        shell.hp--;
+                                    }
+                                }
+                            } else {
+                                if (bullet.intersectsMesh(bossEnemy.mainMesh, false)) {
+                                    bullet.dispose();
+                                    playerBullets.splice(i, 1);
+
+                                    if (bossEnemy.hp <= 0) {
+                                        bossEnemy.mainMesh.dispose();
+                                        appState = "clear";
+                                    } else {
+                                        bossEnemy.hp--;
+                                    }
+                                }
+                            }
+                        }
+
+                        for (let i = 0; i < bossBoxBullets.length; i++) {
+                            const bullet = bossBoxBullets[i];
+
+                            if (bullet.mesh.intersectsMesh(player.mesh, false)) {
+                                bullet.mesh.dispose();
+                                bossBoxBullets.splice(i, 1);
+
+                                if (player.hp <= 0) {
+                                    appState = "over";
+                                } else  {
+                                    player.hp--;
+                                }
+                            }
                         }
                     }
                 }
@@ -465,6 +554,45 @@ export default function Canvas() {
                                 i--;
                             }
                         }
+                        if (currentBossBoxCooldown <= 0) {
+                            const numShells = bossEnemy.shell.length * 15;
+                            const angleIncrement = (Math.PI / 2) / numShells;
+
+                            for (let i = 0; i < numShells; i++) {
+                                const bullet = BABYLON.MeshBuilder.CreateSphere("bossBullet", {
+                                    segments: 16,
+                                    diameter: 0.6
+                                }, scene);
+                                bullet.position.copyFrom(bossEnemy.mainMesh.position);
+                                currentAngle = (Math.PI * 5 / 4) + angleIncrement * i;
+                                bossBoxBullets.push({
+                                    mesh: bullet,
+                                    direction: currentAngle
+                                });
+                            }
+                            currentBossBoxCooldown = bossBoxBulletsCooldown
+                        } else {
+                            currentBossBoxCooldown--;
+                        }
+
+                        for (let i = 0; i < bossBoxBullets.length; i++) {
+                            let bullet = bossBoxBullets[i];
+                            const bulletSpeed = 0.4;
+
+                            const directionVector = new BABYLON.Vector3(
+                                Math.cos(bullet.direction),
+                                0,
+                                Math.sin(bullet.direction)
+                            );
+
+                            bullet.mesh.position.addInPlace(directionVector.scale(bulletSpeed));
+
+                            if (!isInRange(bullet.mesh.position.x, bullet.mesh.position.z)) {
+                                bullet.mesh.dispose();
+                                bossBoxBullets.splice(i, 1);
+                                i--;
+                            }
+                        }
                     }
                     const width = 800 * player.hp / playerHp;
                     hpBar.width = `${width}px`;
@@ -486,6 +614,10 @@ export default function Canvas() {
     )
 }
 
+function isInRange(x: number, z: number): Boolean {
+    return (-75 <= x && x <= 75 ) && (-75 <= z && z <= 75);
+}
+
 function makeBox(name: string, scale: BABYLON.Vector3, position: BABYLON.Vector3): BABYLON.Mesh {
     const box = BABYLON.MeshBuilder.CreateBox(name);
     box.scaling = scale;
@@ -494,14 +626,54 @@ function makeBox(name: string, scale: BABYLON.Vector3, position: BABYLON.Vector3
     return box;
 }
 
-function makeEnemies(num: number, hp: number): Enemy[] {
+function makeEnemies(num: number, hp: number, scene: BABYLON.Scene): Enemy[] {
     const enemies: Enemy[] = [];
 
     for(let i = 0; i < num; i++) {
         const enemyBox = makeBox("enemy", new BABYLON.Vector3(2, 2, 2), new BABYLON.Vector3(-(5 *(num - 1) / 2) + i * 5, 1, 60));
+        const enemyName = makeText("enemyText", "&'static str", enemyBox, scene);
 
-        enemies.push({mesh: enemyBox, hp: hp});
+        enemies.push({mesh: enemyBox, hp: hp, textMesh: enemyName});
     }
 
     return enemies;
+}
+
+function makeBossBox(shell: number, shellHp: number, hp: number, scene: BABYLON.Scene): BossBox {
+    const mainBox = makeBox("BossBoxMain", new BABYLON.Vector3(4, 4, 4), new BABYLON.Vector3(0, 75, 70));
+    const bossName = makeText("bossText", "Box<...>", mainBox, scene);
+    bossName.position.y += 1;
+
+    const shells: Shell[] = [];
+    for(let i = 0; i < shell; i++) {
+        const shellSize = 128 / Math.pow(2, i);
+        const shellBox = makeBox("shellBox", new BABYLON.Vector3(shellSize, shellSize, shellSize), new BABYLON.Vector3(0, 75 + shellSize, 70));
+        shells.push({mesh: shellBox, hp: shellHp});
+    }
+
+    return {mainMesh: mainBox, hp: hp, shell: shells, textMesh: bossName};
+}
+
+function makeText(name: string, text: string, mesh: BABYLON.Mesh, scene: BABYLON.Scene) {
+    const dynamicTexture = new BABYLON.DynamicTexture(name, 256, scene, true);
+    dynamicTexture.hasAlpha = true;
+    const textureContext = dynamicTexture.getContext();
+
+    textureContext.font = "24px Arial";
+    textureContext.fillStyle = "red";
+
+    textureContext.fillText(text, 128, 128);
+    dynamicTexture.update();
+
+    const textMaterial = new BABYLON.StandardMaterial("textMaterial", scene);
+    textMaterial.diffuseTexture = dynamicTexture;
+
+    const textPlane = BABYLON.MeshBuilder.CreatePlane("textPlane", { size: 7 }, scene);
+    textPlane.material = textMaterial;
+
+    textPlane.position = mesh.position.clone();
+    textPlane.position.y = 14;
+    textPlane.position.z = -50;
+
+    return textPlane;
 }

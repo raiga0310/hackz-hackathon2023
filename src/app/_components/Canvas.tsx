@@ -2,9 +2,10 @@
 
 import {useEffect, useRef} from "react";
 import * as BABYLON from "babylonjs";
-import { Button, AdvancedDynamicTexture, Image } from "babylonjs-gui";
+import { Button, AdvancedDynamicTexture, Image, Rectangle } from "babylonjs-gui";
 import 'babylonjs-materials';
 import "./Canvas.css";
+import {randomInt} from "crypto";
 
 type PLayer = {
     mesh: BABYLON.Mesh;
@@ -59,9 +60,10 @@ export default function Canvas() {
             groundMat.diffuseTexture = texture;
             ground.material = groundMat;
 
+            const playerHp = 5;
             const boxSize = 1;
             const box = makeBox("box1", new BABYLON.Vector3(1, 1, 1), new BABYLON.Vector3(0, 0, -50));
-            const player: PLayer = {mesh: box, hp: 5, score: 0};
+            const player: PLayer = {mesh: box, hp: playerHp, score: 0};
 
             box.position.addInPlaceFromFloats(0, boxSize / 2.0, 0);
 
@@ -95,13 +97,16 @@ export default function Canvas() {
 
             });
 
-            let bullets: BABYLON.Mesh[] = [];
+            let playerBullets: BABYLON.Mesh[] = [];
+            let enemiesBullets: BABYLON.Mesh[] = [];
 
-            const bulletCooldown = 10;
-            let currentBulletCooldown = 0;
+            const playerBulletsCooldown = 10;
+            const enemiesBulletsCooldown = 40;
+            let currentPlayerBulletsCooldown = 0;
+            let currentEnemiesCooldown = 0;
 
             // GUI
-            let appState: "start" | "play" | "pause" | "" | "clear" = "start";
+            let appState: "start" | "play" | "pause" | "over" | "clear" = "start";
             let advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("UI");
             advancedTexture.background = "rgba(128, 128, 128, 0.7)"; // 透明度の高いグレー
 
@@ -150,18 +155,29 @@ export default function Canvas() {
                     enemy.mesh.position.z = 50;
                 });
 
-                bullets = [];
+                playerBullets.map((bullet) => bullet.dispose());
+                playerBullets = [];
                 intEnemies.map((enemy) => enemy.mesh.dispose());
                 intEnemies = [];
                 intEnemies = makeEnemies(numIntEnemies, enemyHp);
+                enemiesBullets.map((bullet) => bullet.dispose());
+                enemiesBullets = [];
+                player.hp = playerHp;
                 advancedTexture.removeControl(button2);
                 advancedTexture.removeControl(button3);
                 advancedTexture.removeControl(congrats);
+                advancedTexture.removeControl(hpBar);
             });
             const congrats =new Image("congrats", "/Congrats.png");
             congrats.width = "800px";
             congrats.height = "284px";
             congrats.top = "-334px";
+
+            const hpBar = new Rectangle("hpBar");
+            hpBar.width = "800px";
+            hpBar.height = "35px";
+            hpBar.top = "300px";
+            hpBar.background = "green";
             advancedTexture.addControl(button1);
             advancedTexture.addControl(logo);
 
@@ -185,7 +201,8 @@ export default function Canvas() {
 
             scene.beforeRender = function () {
                 if (appState === "play") {
-                    advancedTexture.background = "rgba(128, 128, 128, 0)"; // 透明度の高いグレー
+                    advancedTexture.background = "rgba(128, 128, 128, 0)";
+                    advancedTexture.addControl(hpBar);
 
                     const texture = groundMat.diffuseTexture as BABYLON.Texture;
                     intEnemies.map((enemy) => {
@@ -213,20 +230,23 @@ export default function Canvas() {
                     advancedTexture.background = "rgba(128, 128, 128, 0.7)";
                     advancedTexture.addControl(button3);
                     advancedTexture.addControl(congrats);
+                } else if(appState === "over") {
+                    advancedTexture.background = "rgba(128, 128, 128, 0.7)";
+                    advancedTexture.addControl(button3);
                 }
             }
 
             scene.registerBeforeRender(function() {
                 if (appState === "play") {
-                    for(let i = 0; i < bullets.length; i++) {
-                        const bullet = bullets[i];
+                    for(let i = 0; i < playerBullets.length; i++) {
+                        const bullet = playerBullets[i];
 
                         for(let j = 0; j < intEnemies.length; j++) {
                             const enemy = intEnemies[j];
 
                             if (bullet.intersectsMesh(enemy.mesh, false)) {
                                 bullet.dispose();
-                                bullets.splice(i, 1);
+                                playerBullets.splice(i, 1);
 
                                 if (enemy.hp <= 0) {
                                     enemy.mesh.dispose();
@@ -234,6 +254,21 @@ export default function Canvas() {
                                 } else {
                                     enemy.hp--;
                                 }
+                            }
+                        }
+                    }
+                    for(let i = 0; i < enemiesBullets.length; i++) {
+                        const bullet = enemiesBullets[i];
+
+                        if (bullet.intersectsMesh(player.mesh, false)) {
+                            bullet.dispose()
+                            enemiesBullets.splice(i, 1);
+
+                            if (player.hp <= 0) {
+                                player.mesh.dispose();
+                                appState = "over";
+                            } else {
+                                player.hp--;
                             }
                         }
                     }
@@ -248,29 +283,59 @@ export default function Canvas() {
                 scene.render();
 
                 if (appState === "play") {
-                    if (currentBulletCooldown <= 0) {
-                        const bullet = BABYLON.MeshBuilder.CreateSphere("bullet", { segments: 16, diameter: 0.8, diameterZ: 4.0 }, scene);
-                        bullet.position.copyFrom(box.position);
-                        bullet.position.z += 2;
+                    if (currentPlayerBulletsCooldown <= 0) {
+                        const playerBullet = BABYLON.MeshBuilder.CreateSphere("playerBullet", { segments: 16, diameter: 0.8, diameterZ: 4.0 }, scene);
+                        playerBullet.position.copyFrom(box.position);
+                        playerBullet.position.z += 2;
 
-                        bullets.push(bullet);
+                        playerBullets.push(playerBullet);
 
-                        currentBulletCooldown = bulletCooldown;
+                        currentPlayerBulletsCooldown = playerBulletsCooldown;
                     } else {
-                        currentBulletCooldown--;
+                        currentPlayerBulletsCooldown--;
                     }
 
-                    for (let i = 0; i < bullets.length; i++) {
-                        let bullet = bullets[i];
+
+                    intEnemies.map((enemy) => {
+                        if (currentEnemiesCooldown <= 0) {
+                            const enemiesBullet = BABYLON.MeshBuilder.CreateSphere("enemiesBullet", {segments: 16, diameter: 0.4}, scene);
+                            enemiesBullet.position.copyFrom(enemy.mesh.position);
+                            enemiesBullet.position.z -= 4;
+
+                            enemiesBullets.push(enemiesBullet);
+
+                            currentEnemiesCooldown = enemiesBulletsCooldown;
+
+                        } else {
+                            currentEnemiesCooldown--;
+                        }
+                    });
+
+                    for (let i = 0; i < playerBullets.length; i++) {
+                        let bullet = playerBullets[i];
                         bullet.position.z += 2; // 弾を前方に移動
 
                         // 画面外に出た弾を削除
                         if (bullet.position.z > 75) {
                             bullet.dispose();
-                            bullets.splice(i, 1);
+                            playerBullets.splice(i, 1);
                             i--;
                         }
                     }
+
+                    for (let i = 0; i < enemiesBullets.length; i++) {
+                        let bullet = enemiesBullets[i];
+                        bullet.position.z -= 0.5; // 弾を前方に移動
+
+                        // 画面外に出た弾を削除
+                        if (bullet.position.z < -75) {
+                            bullet.dispose();
+                            enemiesBullets.splice(i, 1);
+                            i--;
+                        }
+                    }
+                    const width = 800 * player.hp / playerHp;
+                    hpBar.width = `${width}px`;
                 }
             });
         })();

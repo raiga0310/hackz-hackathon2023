@@ -74,7 +74,10 @@ export default function Canvas() {
 
             const playerHp = 5;
             const boxSize = 1;
-            const box = makeBox("box1", new BABYLON.Vector3(1, 1, 1), new BABYLON.Vector3(0, 0, -50));
+            const box = makeBox("box1", new BABYLON.Vector3(2, 2, 2), new BABYLON.Vector3(0, 0, -50));
+            const boxMat = new BABYLON.StandardMaterial("pentium4", scene);
+            boxMat.diffuseTexture = new BABYLON.Texture("/pentium4.jpg");
+            box.material = boxMat;
             const player: Player = {mesh: box, hp: playerHp, score: 0};
 
             box.position.addInPlaceFromFloats(0, boxSize / 2.0, 0);
@@ -86,6 +89,11 @@ export default function Canvas() {
             const shellHp = 30;
             const bossHp = 50;
             let bossEnemy = makeBossBox(5, shellHp, bossHp, scene);
+            const bossMat = new BABYLON.StandardMaterial("boss", scene);
+            bossMat.diffuseTexture = new BABYLON.Texture("/boss.png");
+
+            bossEnemy.shell.map((shell) => shell.mesh.material = bossMat);
+            bossEnemy.mainMesh.material = bossMat;
 
             let isLeftPressed: boolean = false;
             let isRightPressed: boolean = false;
@@ -206,6 +214,7 @@ export default function Canvas() {
                 advancedTexture.removeControl(button3);
                 advancedTexture.removeControl(congrats);
                 advancedTexture.removeControl(hpBar);
+                advancedTexture.removeControl(gameover);
                 currentTextIndex = 0;
                 textIndex = 0;
                 textBlock.text = "";
@@ -351,6 +360,7 @@ export default function Canvas() {
                         } else {
                             if (bossEnemy.shell.length > 0 && bossEnemy.shell[0].mesh.position.y <= bossEnemy.shell[0].mesh.scaling.y / 2) {
                                 bossEnemy.mainMesh.position.x = Math.pow(2, 1 + bossEnemy.shell.length) * Math.sin(2 * Math.PI / 360 * (tick % 360));
+                                bossEnemy.shell.map((shell) => shell.mesh.position.x = bossEnemy.mainMesh.position.x);
                                 tick++;
                             }
                         }
@@ -381,6 +391,7 @@ export default function Canvas() {
                 } else if(appState === "over") {
                     advancedTexture.background = "rgba(128, 128, 128, 0.7)";
                     advancedTexture.addControl(button3);
+                    advancedTexture.addControl(gameover);
                 }
             }
 
@@ -515,7 +526,7 @@ export default function Canvas() {
                             if (currentEnemiesCooldown <= 0) {
                                 const enemiesBullet = BABYLON.MeshBuilder.CreateSphere("enemiesBullet", {
                                     segments: 16,
-                                    diameter: 0.4
+                                    diameter: 0.8
                                 }, scene);
                                 enemiesBullet.material = bulletMat;
                                 enemiesBullet.position.copyFrom(enemy.mesh.position);
@@ -576,7 +587,7 @@ export default function Canvas() {
                             for (let i = 0; i < numShells; i++) {
                                 const bullet = BABYLON.MeshBuilder.CreateSphere("bossBullet", {
                                     segments: 16,
-                                    diameter: 1.2
+                                    diameter: 1.4,
                                 }, scene);
                                 bullet.material = bulletMat;
                                 bullet.position.copyFrom(bossEnemy.mainMesh.position);
@@ -648,6 +659,10 @@ function makeEnemies(num: number, hp: number, scene: BABYLON.Scene): Enemy[] {
     for(let i = 0; i < num; i++) {
         const enemyBox = makeBox("enemy", new BABYLON.Vector3(2, 2, 2), new BABYLON.Vector3(-(5 *(num - 1) / 2) + i * 5, 1, 60));
         const enemyName = makeText("enemyText", "&'static str", enemyBox, scene);
+        const enemyMat = new BABYLON.StandardMaterial("enemy", scene);
+        enemyMat.diffuseTexture = new BABYLON.Texture("/enemy.png");
+
+        enemyBox.material = enemyMat;
 
         enemies.push({mesh: enemyBox, hp: hp, textMesh: enemyName});
     }

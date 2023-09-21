@@ -75,7 +75,7 @@ export default function Canvas() {
             const playerHp = 5;
             const boxSize = 1;
             const box = makeBox("box1", new BABYLON.Vector3(1, 1, 1), new BABYLON.Vector3(0, 0, -50));
-            const player: PLayer = {mesh: box, hp: playerHp, score: 0};
+            const player: Player = {mesh: box, hp: playerHp, score: 0};
 
             box.position.addInPlaceFromFloats(0, boxSize / 2.0, 0);
 

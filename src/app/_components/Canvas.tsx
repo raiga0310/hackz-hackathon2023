@@ -6,7 +6,7 @@ import {AdvancedDynamicTexture, Button, Image, Rectangle, TextBlock} from "babyl
 import 'babylonjs-materials';
 import "./Canvas.css";
 
-type PLayer = {
+type Player = {
     mesh: BABYLON.Mesh;
     hp: number;
     score: number;
@@ -117,6 +117,10 @@ export default function Canvas() {
             let enemiesBullets: BABYLON.Mesh[] = [];
             let bossBoxBullets: { mesh: BABYLON.Mesh, direction: number }[] = [];
 
+            const bulletMat = new BABYLON.StandardMaterial("bullet", scene);
+            bulletMat.diffuseTexture = new BABYLON.Texture("undefined.jpg", scene);
+
+
             const playerBulletsCooldown = 10;
             const enemiesBulletsCooldown = 50;
             const bossBoxBulletsCooldown = 40;
@@ -131,10 +135,14 @@ export default function Canvas() {
             let advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("UI");
             advancedTexture.background = "rgba(128, 128, 128, 0.7)"; // 透明度の高いグレー
 
-            const logo = new Image("image", "/Title.jpg");
+            const logo = new Image("image", "/Title.png");
             logo.width = "800px";
-            logo.height = "185px";
-            logo.top = "-235px";
+            logo.height = "183px";
+            logo.top = "-233px";
+            const gameover = new Image("image", "/GameOver.png");
+            gameover.width = "800px";
+            gameover.height = "205px";
+            gameover.top = "-255px";
             const button1 = Button.CreateSimpleButton("but1", "Start");
             button1.width = "150px"
             button1.height = "40px";
@@ -305,6 +313,7 @@ export default function Canvas() {
             });
 
             const animationSpeed = 0.2;
+            let tick = 0;
 
             scene.beforeRender = function () {
                 if (appState === "play") {
@@ -337,8 +346,13 @@ export default function Canvas() {
                         advancedTexture.background = "rgba(128, 128, 128, 0.7)";
                     } else if (gameState === "boss") {
                         //boss position move
-                        if (bossEnemy.mainMesh.position.y >= 1) {
+                        if (bossEnemy.shell.length > 0 && bossEnemy.shell[0].mesh.position.y > 1 && bossEnemy.mainMesh.position.y > 1) {
                             bossEnemy.mainMesh.position.y -= 0.5;
+                        } else {
+                            if (bossEnemy.shell.length > 0 && bossEnemy.shell[0].mesh.position.y <= bossEnemy.shell[0].mesh.scaling.y / 2) {
+                                bossEnemy.mainMesh.position.x = Math.pow(2, 1 + bossEnemy.shell.length) * Math.sin(2 * Math.PI / 360 * (tick % 360));
+                                tick++;
+                            }
                         }
                         bossEnemy.shell.map((shell) => {
                             if(shell.mesh.position.y >= shell.mesh.scaling.y / 2) {
@@ -503,6 +517,7 @@ export default function Canvas() {
                                     segments: 16,
                                     diameter: 0.4
                                 }, scene);
+                                enemiesBullet.material = bulletMat;
                                 enemiesBullet.position.copyFrom(enemy.mesh.position);
                                 enemiesBullet.position.z -= 4;
 
@@ -555,14 +570,15 @@ export default function Canvas() {
                             }
                         }
                         if (currentBossBoxCooldown <= 0) {
-                            const numShells = bossEnemy.shell.length * 15;
+                            const numShells = bossEnemy.shell.length * 8;
                             const angleIncrement = (Math.PI / 2) / numShells;
 
                             for (let i = 0; i < numShells; i++) {
                                 const bullet = BABYLON.MeshBuilder.CreateSphere("bossBullet", {
                                     segments: 16,
-                                    diameter: 0.6
+                                    diameter: 1.2
                                 }, scene);
+                                bullet.material = bulletMat;
                                 bullet.position.copyFrom(bossEnemy.mainMesh.position);
                                 currentAngle = (Math.PI * 5 / 4) + angleIncrement * i;
                                 bossBoxBullets.push({
@@ -642,7 +658,7 @@ function makeEnemies(num: number, hp: number, scene: BABYLON.Scene): Enemy[] {
 function makeBossBox(shell: number, shellHp: number, hp: number, scene: BABYLON.Scene): BossBox {
     const mainBox = makeBox("BossBoxMain", new BABYLON.Vector3(4, 4, 4), new BABYLON.Vector3(0, 75, 70));
     const bossName = makeText("bossText", "Box<...>", mainBox, scene);
-    bossName.position.y += 1;
+    bossName.position.y += 2;
 
     const shells: Shell[] = [];
     for(let i = 0; i < shell; i++) {
